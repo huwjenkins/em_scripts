@@ -65,7 +65,7 @@ def count_group(star_file, output_file, cutoff):
       if cutoff is not None and groups[grp[0]] < cutoff:
           reject.append(mics[grp[0]])
     else:
-      print('{} {:8d} {:8d}' % (grp[0], groups[grp[0]], total - running_total))
+      print('{} {:8d} {:8d}'.format(grp[0], groups[grp[0]], total - running_total))
     running_total += groups[grp[0]]
   if cutoff is not None and len(reject) > 0:
     print ('Writing micrographs with fewer than {} particles to {}'.format(cutoff, output_file))
