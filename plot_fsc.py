@@ -24,7 +24,7 @@ def read_headers(star_file):
       else:
          continue 
 
-def make_plot(star_files, output_file, show_legend):
+def make_plot(star_files, output_file, show_legend, legend, colors):
   n_itns = len(star_files)
   curves = []
   invresols = []
@@ -60,7 +60,10 @@ def make_plot(star_files, output_file, show_legend):
     sys.exit('Error: plotting FSCs with different resolution bins is not supported!')
   if i.shape[1] != f.shape[1]:
     sys.exit('Error: Mis-match between no. of resolution shells and FSC values!')
-  colors = ['#0072b2','#e69f00','#009e73','#cc79a7','#f0e442','#56b4e9','#d55e00','#999999']
+  if colors is None:
+    colors = ['#0072b2','#e69f00','#009e73','#cc79a7','#f0e442','#56b4e9','#d55e00','#999999']
+  if legend is not None:
+    curves = legend
   fig, ax = plt.subplots()
   for c in range(len(curves)):
     if c < 9:
@@ -84,7 +87,17 @@ if __name__ == '__main__':
                       help='output file_name')
   parser.add_argument('--no_legend', required=False, action='store_true', default=False,
                       help='hide legend')
+  parser.add_argument('--colors', required=False, default=None, metavar='"#969696,#0072b2,#e69f00"', type=str,
+                      help='comma separated list of colours')
+  parser.add_argument('--legend', required=False, default=None, metavar='"curve 1,curve 2,curve 3"', type=str,
+                      help='comma separated list for curves in legend')
   args = parser.parse_args()
   if len([f for f in args.star_files if 'postprocess.star' in f]) != len(args.star_files):
     sys.exit('Error: You need to give a list of postprocess.star files')
-  make_plot(star_files=args.star_files, output_file=args.output, show_legend=not(args.no_legend))
+  legend = args.legend.split(',') if args.legend is not None else None
+  colors = args.colors.split(',') if args.colors is not None else None
+  if legend is not None and len(legend) != len(args.star_files):
+      sys.exit('Error: Mismatch between number of labels and number of star files')
+  if colors is not None and len(colors) != len(args.star_files):
+      sys.exit('Error: Mismatch between number of colours and number of star files')
+  make_plot(star_files=args.star_files, output_file=args.output, show_legend=not(args.no_legend), legend=legend, colors=colors)
