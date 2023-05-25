@@ -1,10 +1,11 @@
 #! /usr/bin/env python
 # Plot FSC curves from RELION postprocess.star files. Author Huw Jenkins 03.07.20
 # Better header reading 02.04.21
+# Model:map FSC 250523
 from __future__ import print_function
-import os
 import sys
 import argparse
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -24,8 +25,7 @@ def read_headers(star_file):
       else:
          continue 
 
-def make_plot(star_files, output_file, show_legend, legend, colors):
-  n_itns = len(star_files)
+def make_plot(star_files, json_file, output_file, show_legend, legend, colors):
   curves = []
   invresols = []
   fscs = []
@@ -56,6 +56,15 @@ def make_plot(star_files, output_file, show_legend, legend, colors):
     invresols = list({tuple(r) for r in invresols})
   i = np.vstack(invresols)
   f = np.array(fscs)
+
+  if json_file is not None:
+    with open(json_file, 'r') as jf:
+      r = json.load(jf)
+    inv_res = []
+    fsc = []
+    for bin in r:
+      inv_res.append(1/bin['d_min'])
+      fsc.append(bin['fsc_model'])
   if i.shape[0] != 1:
     sys.exit('Error: plotting FSCs with different resolution bins is not supported!')
   if i.shape[1] != f.shape[1]:
@@ -71,6 +80,11 @@ def make_plot(star_files, output_file, show_legend, legend, colors):
     else:
       ax.plot(i[0], f[c], '-', linewidth=2, label=curves[c])
   ax.axhline(y=0.143, ls='--', color='#000000')
+  if json_file is not None:
+    i = np.array(inv_res)
+    f = np.array(fsc)
+    ax.plot(i, f, '-', linewidth=2, color='#999999', label='model:map')
+    ax.axhline(y=0.5, ls='--', color='#000000')
   ax.set_xlabel('Resolution (1/$\AA$)')
   ax.set_ylabel('FSC')
   if show_legend:
@@ -91,13 +105,17 @@ if __name__ == '__main__':
                       help='comma separated list of colours')
   parser.add_argument('--legend', required=False, default=None, metavar='"curve 1,curve 2,curve 3"', type=str,
                       help='comma separated list for curves in legend')
+  parser.add_argument('--json', required=False, default=None, metavar='refined_fsc.json', type=str,
+                      help='JSON file from Servalcat')
   args = parser.parse_args()
   if len([f for f in args.star_files if 'postprocess.star' in f]) != len(args.star_files):
     sys.exit('Error: You need to give a list of postprocess.star files')
+  if len(args.star_files) > 1 and args.json is not None:
+    sys.exit('Error: You can only plot 1 1/2 map FSC and 1 model:map FSC')
   legend = args.legend.split(',') if args.legend is not None else None
   colors = args.colors.split(',') if args.colors is not None else None
   if legend is not None and len(legend) != len(args.star_files):
       sys.exit('Error: Mismatch between number of labels and number of star files')
   if colors is not None and len(colors) != len(args.star_files):
       sys.exit('Error: Mismatch between number of colours and number of star files')
-  make_plot(star_files=args.star_files, output_file=args.output, show_legend=not(args.no_legend), legend=legend, colors=colors)
+  make_plot(star_files=args.star_files, json_file=args.json, output_file=args.output, show_legend=not(args.no_legend), legend=legend, colors=colors)
