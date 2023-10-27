@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # Plots progress of Topaz training when run from RELION
 # Author Huw Jenkins 235021
-
+from __future__ import print_function
 import os
 import sys
 import argparse
@@ -19,19 +19,19 @@ def make_plot(star_file, output_file):
         elif line.split()[0].strip() == 'topaz_nr_particles':
           n = int(line.split()[1].strip())
     if n < 0 or job != 'relion.autopick.topaz.train':
-      sys.exit(f"Sorry {star_file} doesn't appear to be from a Topaz training job")
+      sys.exit("Sorry {} doesn't appear to be from a Topaz training job".format(star_file))
   results_file = os.path.join(os.path.split(star_file)[0],'model_training.txt')
   table = pd.read_csv(results_file, sep='\t')
   table = table.loc[table['split'] == 'test'] # only keep the validation results
   table['auprc'] = table['auprc'].astype(float)
-  print(f'Plotting area under the precision-recall curve for {len(table)} epochs of training...')
+  print('Plotting area under the precision-recall curve for {} epochs of training...'.format(len(table)))
   fig, ax = plt.subplots()
   ax.plot(table['epoch'], table['auprc'], '-o',  label=str(n))
   ax.set_xlabel('Epoch')
   ax.set_ylabel('AUPRC')
   ax.legend(loc='best')
   plt.savefig(output_file, format='pdf')
-  print(f'...written plot to {output_file}')
+  print('...written plot to {}'.format(output_file))
   plt.close()
 
 if __name__=='__main__':
