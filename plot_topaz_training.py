@@ -43,4 +43,6 @@ if __name__=='__main__':
   args = parser.parse_args()
   if not os.path.split(args.star_file)[0].startswith('AutoPick'):
     sys.exit('Please run this script from the RELION job directory and supply the path to the star file as Autopick/jobNNN/job.star')
+  if not os.path.isfile(args.star_file):
+    sys.exit('Could not find {}'.format(args.star_file))
   make_plot(star_file=args.star_file, output_file=args.output)
