@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 # Plots histogram of Topaz picking scores from RELION autopick job
 # Author Huw Jenkins 205021
-
+from __future__ import print_function
 import os
 import sys
 import argparse
@@ -59,7 +59,7 @@ def make_plot(star_file, output_file, min, max, bins):
           data = True
         else:
           continue
-  print(f'Plotting histogram of FOM from {len(foms)} picks from {len(star_files)} micrographs...')
+  print('Plotting histogram of FOM from {} picks from {} micrographs...'.format(len(foms), len(star_files)))
   a = np.array(foms)
   fig, ax1 = plt.subplots()
   ax1.hist(a, bins=bins, range=(min, max))
@@ -68,7 +68,7 @@ def make_plot(star_file, output_file, min, max, bins):
   ax1.xaxis.set_minor_locator(AutoMinorLocator())
   plt.grid(True)
   plt.savefig(output_file, format='pdf')
-  print(f'...written plot to {output_file}')
+  print('...written plot to {}'.format(output_file))
   plt.close()
 
 if __name__=='__main__':
