@@ -4,6 +4,7 @@
 # Added class option 03.11.20
 # Fixed width bins 08.12.20
 # Better header reading 02.04.21
+# More options 07.11.23
 from __future__ import print_function
 import sys
 import argparse 
@@ -11,9 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def read_headers(star_file):
-  got_labels = False
   data = False
-  in_loop = False
   with open(star_file) as f:
     for line in f:
       if line[0:5] == 'data_' and line.strip()[5:] in ['', 'particles', 'micrographs']:
@@ -26,10 +25,11 @@ def read_headers(star_file):
       else:
          continue 
 
-def make_plots(star_file, output_file, cutoff, bins, select):
+def make_plots(star_file, output_file, cutoff, cut_res, bins, select):
   defocusU_results = []
   defocusV_results = []
   astigmatism_results = []
+  ctf_res_results = []
   classes = {}
   if cutoff is None:
     cutoff = 999999.99
@@ -39,7 +39,7 @@ def make_plots(star_file, output_file, cutoff, bins, select):
     n, u, v = labels.index('rlnClassNumber'), labels.index('rlnDefocusU'), labels.index('rlnDefocusV')
     data_particles = True
   except ValueError:
-    u, v = labels.index('rlnDefocusU'), labels.index('rlnDefocusV')
+    u, v, r = labels.index('rlnDefocusU'), labels.index('rlnDefocusV'), labels.index('rlnCtfMaxResolution')
     data_particles = False
 
   with open(star_file) as f:
@@ -48,11 +48,14 @@ def make_plots(star_file, output_file, cutoff, bins, select):
       if data and line.strip() != '':
         items = line.split()
         if u is not None and v is not None:
-          a = abs(float(items[u]) - float(items[v]))
-          if a < cutoff and n is None:
-            defocusU_results.append(float(items[u]))
-            defocusV_results.append(float(items[v]))
-            astigmatism_results.append(a)
+          if n is None:
+            a = abs(float(items[u]) - float(items[v]))
+            res = float(items[r])
+            if (a < cutoff and not cut_res) or (res < cutoff and cut_res):
+              defocusU_results.append(float(items[u]))
+              defocusV_results.append(float(items[v]))
+              ctf_res_results.append(res)
+              astigmatism_results.append(a)
           elif n is not None:
             try:
               classes[int(items[n])]['defocusU_results'].append(float(items[u]))
@@ -101,25 +104,38 @@ def make_plots(star_file, output_file, cutoff, bins, select):
         plt.hist(d, color=colors[i], label=labels[i], **kwargs)
       else: 
         plt.hist(d, **kwargs)
-    plt.xlabel('Defocus ($\AA$)')
+    plt.xlabel('Defocus ($\mathrm{\AA}$)')
     plt.ylabel('Number of particles')
     if len(classes) > 1:
       plt.legend(loc='best', fontsize=10)
   else:
     u = np.array(defocusU_results)
     v = np.array(defocusV_results)
+    d = (u+v)/2.0
     a = np.array(astigmatism_results)
-    plt.subplot2grid((2,2), (0,0), colspan=2)
-    plt.scatter(u,v)
+    r = np.array(ctf_res_results)
+    plt.subplot2grid((2,2), (0,0))
+    plt.scatter(u,v, s=6)
     plt.title(star_file)
-    plt.xlabel('Defocus U ($\AA$)')
-    plt.ylabel('Defocus V ($\AA$)')
-    plt.subplot2grid((2,2), (1,0), colspan=2)
+    plt.xlabel('Defocus U ($\mathrm{\AA}$)', fontsize=10)
+    plt.ylabel('Defocus V ($\mathrm{\AA}$)', fontsize=10)
+    plt.subplot2grid((2,2), (0,1))
+    plt.hist(d, bins=bins)
+    plt.xlabel('Defocus ($\mathrm{\AA}$)', fontsize=10)
+    plt.ylabel('Number of micrographs', fontsize=10)
+    plt.subplot2grid((2,2), (1,0))
     plt.hist(a, bins=bins)
-    plt.xlabel('Astigmatism ($\AA$)')
-    plt.ylabel('Number of micrographs')
-  if cutoff != 999999.99:
+    plt.xlabel('Astigmatism ($\mathrm{\AA}$)', fontsize=10)
+    plt.ylabel('Number of micrographs', fontsize=10)
+    plt.subplot2grid((2,2), (1,1))
+    plt.hist(r, bins=bins)
+    plt.xlabel('CTF Maximum resolution ($\mathrm{\AA}$)', fontsize=10)
+    plt.ylabel('Number of micrographs', fontsize=10)
+    plt.tight_layout()
+  if cutoff != 999999.99 and not cut_res:
     print('Writing defocus results with astigmatism lower than than {:0.2f} to {}'.format(cutoff, output_file))
+  elif cutoff != 999999.99 and cut_res:
+    print('Writing defocus results with CTF maximum resolution better than than {:0.2f} to {}'.format(cutoff, output_file))
   else:
     print('Writing defocus results to {}'.format(output_file))
   plt.savefig(output_file, format='pdf')
@@ -131,11 +147,12 @@ if __name__=='__main__':
                       help='star file from CtfFind or with refined CTF parameters')
   parser.add_argument('--output', required=False, default='defocus.pdf', metavar='defocus.pdf', type=str,
                       help='output file_name')
-  parser.add_argument('--cutoff', required=False, default=None, metavar='999.9', type=float,
-                      help='maximum astigmatism to include in plots (helpful to reject very poor micrographs)')
+  parser.add_argument('--cutoff', required=False, default=999999.99, metavar='999.9', type=float,
+                      help='maximum astigmatism or CTF resolution to include in plots (helpful to reject very poor micrographs) value >= 25 interpreted as astigmatism')
   parser.add_argument('--bins', required=False, default=60, metavar='60', type=int,
                       help='number of bins in histogram')
   parser.add_argument('--select_class', required=False, default=None, metavar='1', type=int,
                       help='just plot this class')
   args = parser.parse_args()
-  make_plots(star_file=args.star_file, output_file=args.output, bins=args.bins, cutoff=args.cutoff, select=args.select_class)
+  cut_res = True if args.cutoff <= 25. else False
+  make_plots(star_file=args.star_file, output_file=args.output, bins=args.bins, cutoff=args.cutoff, cut_res=cut_res, select=args.select_class)
