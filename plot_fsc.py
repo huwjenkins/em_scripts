@@ -83,7 +83,7 @@ def make_plot(star_files, json_file, output_file, show_legend, legend, colors):
     f = np.array(fsc)
     ax.plot(i, f, '-', linewidth=2, color='#999999', label='model:map')
     ax.axhline(y=0.5, ls='--', color='#000000')
-  ax.set_xlabel('Resolution (1/$\AA$)')
+  ax.set_xlabel('Resolution (1/$\mathrm{\AA}$)')
   ax.set_ylabel('FSC')
   if show_legend:
     ax.legend(loc='center left', fontsize=10)
