@@ -10,9 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def read_headers(star_file):
-  got_labels = False
   data = False
-  in_loop = False
   with open(star_file) as f:
     for line in f:
       if line[0:5] == 'data_' and line.strip()[5:] in ['', 'fsc']:
