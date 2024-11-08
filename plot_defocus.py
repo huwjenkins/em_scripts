@@ -4,7 +4,7 @@
 # Added class option 03.11.20
 # Fixed width bins 08.12.20
 # Better header reading 02.04.21
-# More options 07.11.23
+# More options 07.11.23, 24.09.24
 from __future__ import print_function
 import sys
 import argparse 
@@ -25,7 +25,7 @@ def read_headers(star_file):
       else:
          continue 
 
-def make_plots(star_file, output_file, cutoff, cut_res, bins, select):
+def make_plots(star_file, output_file, cutoff, cut_res, bins, select, only_max_res):
   defocusU_results = []
   defocusV_results = []
   astigmatism_results = []
@@ -114,20 +114,21 @@ def make_plots(star_file, output_file, cutoff, cut_res, bins, select):
     d = (u+v)/2.0
     a = np.array(astigmatism_results)
     r = np.array(ctf_res_results)
-    plt.subplot2grid((2,2), (0,0))
-    plt.scatter(u,v, s=6)
-    plt.title(star_file)
-    plt.xlabel('Defocus U ($\mathrm{\AA}$)', fontsize=10)
-    plt.ylabel('Defocus V ($\mathrm{\AA}$)', fontsize=10)
-    plt.subplot2grid((2,2), (0,1))
-    plt.hist(d, bins=bins)
-    plt.xlabel('Defocus ($\mathrm{\AA}$)', fontsize=10)
-    plt.ylabel('Number of micrographs', fontsize=10)
-    plt.subplot2grid((2,2), (1,0))
-    plt.hist(a, bins=bins)
-    plt.xlabel('Astigmatism ($\mathrm{\AA}$)', fontsize=10)
-    plt.ylabel('Number of micrographs', fontsize=10)
-    plt.subplot2grid((2,2), (1,1))
+    if not only_max_res:
+      plt.subplot2grid((2,2), (0,0))
+      plt.scatter(u,v, s=6)
+      plt.title(star_file)
+      plt.xlabel('Defocus U ($\mathrm{\AA}$)', fontsize=10)
+      plt.ylabel('Defocus V ($\mathrm{\AA}$)', fontsize=10)
+      plt.subplot2grid((2,2), (0,1))
+      plt.hist(d, bins=bins)
+      plt.xlabel('Defocus ($\mathrm{\AA}$)', fontsize=10)
+      plt.ylabel('Number of micrographs', fontsize=10)
+      plt.subplot2grid((2,2), (1,0))
+      plt.hist(a, bins=bins)
+      plt.xlabel('Astigmatism ($\mathrm{\AA}$)', fontsize=10)
+      plt.ylabel('Number of micrographs', fontsize=10)
+      plt.subplot2grid((2,2), (1,1))
     plt.hist(r, bins=bins)
     plt.xlabel('CTF Maximum resolution ($\mathrm{\AA}$)', fontsize=10)
     plt.ylabel('Number of micrographs', fontsize=10)
@@ -153,6 +154,8 @@ if __name__=='__main__':
                       help='number of bins in histogram')
   parser.add_argument('--select_class', required=False, default=None, metavar='1', type=int,
                       help='just plot this class')
+  parser.add_argument('--only_max_res', required=False, default=False, action='store_true',
+                      help='only plot CTF maximum resolutiob')
   args = parser.parse_args()
   cut_res = True if args.cutoff <= 25. else False
-  make_plots(star_file=args.star_file, output_file=args.output, bins=args.bins, cutoff=args.cutoff, cut_res=cut_res, select=args.select_class)
+  make_plots(star_file=args.star_file, output_file=args.output, bins=args.bins, cutoff=args.cutoff, cut_res=cut_res, select=args.select_class, only_max_res=args.only_max_res)
