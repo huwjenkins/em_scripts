@@ -152,4 +152,4 @@ if __name__=='__main__':
       sys.exit('Please run this script from the RELION job directory and supply the path to the job.star file as Autopick/jobNNN/job.star')
     if not os.path.isfile(star_file):
       sys.exit('Could not find {}'.format(star_file))
-  make_plot(star_files=args.star_files, output_file=args.output, min=args.min, max=args.max, bins=args.bin)
+  make_plot(star_files=args.star_files, output_file=args.output, min=args.min, max=args.max, bins=args.bins)
