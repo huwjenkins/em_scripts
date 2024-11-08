@@ -3,6 +3,8 @@
 # replaces plot_topaz_training.py and plot_topaz_results.py
 # Author Huw Jenkins 061223
 # 081124 add Table of No. particles at various FOM thresholds
+# 081124 Allow plotting multiple training runs.
+
 from __future__ import print_function
 import os
 import sys
@@ -86,19 +88,20 @@ def make_FOM_plot(star_file, output_file, min, max, bins):
   print('...written plot to {}'.format(output_file))
   plt.close()
 
-def make_training_plot(star_file, n, output_file):
-  if n == -1:
-    print('WARNING {} has number of expected particles set to -1.'.format(star_file))
-    print('WARNING RELION sets the default number of expected particles to 200 but *you* should have set this!')
-    print('WARNING Topaz training quality is highly dependent on the value for the number of expected particles')
-    print('WARNING You should optimise the choice of value for the number of expected particles!')
-  results_file = os.path.join(os.path.split(star_file)[0],'model_training.txt')
-  table = pd.read_csv(results_file, sep='\t')
-  table = table.loc[table['split'] == 'test'] # only keep the validation results
-  table['auprc'] = table['auprc'].astype(float)
-  print('Plotting area under the precision-recall curve for {} epochs of training...'.format(len(table)))
+def make_training_plot(star_files, n, output_file):
   fig, ax = plt.subplots()
-  ax.plot(table['epoch'], table['auprc'], '-o',  label=str(n))
+  for star_file, n in zip(star_files,n):
+    if n == -1:
+      print('WARNING {} has number of expected particles set to -1.'.format(star_file))
+      print('WARNING RELION sets the default number of expected particles to 200 but *you* should have set this!')
+      print('WARNING Topaz training quality is highly dependent on the value for the number of expected particles')
+      print('WARNING You should optimise the choice of value for the number of expected particles!')
+    results_file = os.path.join(os.path.split(star_file)[0],'model_training.txt')
+    table = pd.read_csv(results_file, sep='\t')
+    table = table.loc[table['split'] == 'test'] # only keep the validation results
+    table['auprc'] = table['auprc'].astype(float)
+    print('Plotting area under the precision-recall curve for {} epochs of training...'.format(len(table)))
+    ax.plot(table['epoch'], table['auprc'], '-o',  label=str(n))
   ax.set_xlabel('Epoch')
   ax.set_ylabel('AUPRC')
   ax.legend(loc='best')
@@ -106,23 +109,33 @@ def make_training_plot(star_file, n, output_file):
   print('...written plot to {}'.format(output_file))
   plt.close()
 
-def make_plot(star_file, output_file, min, max, bins):
-  job, n = get_job_type(star_file)
-  if output_file == 'topaz.pdf': # default
+def make_plot(star_files, output_file, min, max, bins):
+  if len(star_files) == 1:
+    star_file=star_files[0]
+    job, n = get_job_type(star_file)
+    if output_file == 'topaz.pdf': # default
+      if job == 'relion.autopick.topaz.pick':
+        output_file = os.path.join(os.path.split(star_file)[0], 'topaz_FOM.pdf')
+      elif job == 'relion.autopick.topaz.train':
+        output_file = os.path.join(os.path.split(star_file)[0], 'topaz_training.pdf')
     if job == 'relion.autopick.topaz.pick':
-      output_file = os.path.join(os.path.split(star_file)[0], 'topaz_FOM.pdf')
+      star_file = os.path.join(os.path.split(star_file)[0],'autopick.star')
+      make_FOM_plot(star_file, output_file, min, max, bins)
     elif job == 'relion.autopick.topaz.train':
-      output_file = os.path.join(os.path.split(star_file)[0], 'topaz_training.pdf')
-  if job == 'relion.autopick.topaz.pick':
-    star_file = os.path.join(os.path.split(star_file)[0],'autopick.star')
-    make_FOM_plot(star_file, output_file, min, max, bins)
-  elif job == 'relion.autopick.topaz.train':
-    make_training_plot(star_file, n, output_file)
+      make_training_plot(star_files, [n], output_file)
+  else:
+    jobs = [get_job_type(sf)[0] for sf in star_files]
+    n = [get_job_type(sf)[1] for sf in star_files]
+    if 'relion.autopick.topaz.pick' in jobs:
+      sys.exit('Sorry only multiple training runs can be plotted together')
+    else:
+      output_file = 'topaz_training.pdf'
+      make_training_plot(star_files, n, output_file)
 
 if __name__=='__main__':
   parser = argparse.ArgumentParser(description='Plot results from Topaz run through RELION')
-  parser.add_argument('star_file', metavar='Autopick/jobNNN/job.star', type=str,
-                      help='path from RELION job directory to star file from Autopick')
+  parser.add_argument('star_files', metavar='Autopick/jobNNN/job.star', type=str, nargs='+',
+                      help='path(s) from RELION job directory to star file(s) from Autopick')
   parser.add_argument('--output', required=False, default='topaz.pdf', metavar='topaz.pdf', type=str,
                       help='output file_name')
   parser.add_argument('--min', required=False, default=-6, metavar='-6', type=float,
@@ -132,10 +145,11 @@ if __name__=='__main__':
   parser.add_argument('--bins', required=False, default=50, metavar='50', type=int,
                       help='number of bins in FOM histogram')
   args = parser.parse_args()
-  if not os.path.split(args.star_file)[0].startswith('AutoPick'):
-    sys.exit('Please run this script from the RELION job directory and supply the path to the job.star file as Autopick/jobNNN/job.star')
-  if not os.path.split(args.star_file)[-1] == 'job.star':
-    sys.exit('Please run this script from the RELION job directory and supply the path to the job.star file as Autopick/jobNNN/job.star')
-  if not os.path.isfile(args.star_file):
-    sys.exit('Could not find {}'.format(args.star_file))
-  make_plot(star_file=args.star_file, output_file=args.output, min=args.min, max=args.max, bins=args.bins)
+  for star_file in args.star_files:
+    if not os.path.split(star_file)[0].startswith('AutoPick'):
+      sys.exit('Please run this script from the RELION job directory and supply the path to the job.star file as Autopick/jobNNN/job.star')
+    if not os.path.split(star_file)[-1] == 'job.star':
+      sys.exit('Please run this script from the RELION job directory and supply the path to the job.star file as Autopick/jobNNN/job.star')
+    if not os.path.isfile(star_file):
+      sys.exit('Could not find {}'.format(star_file))
+  make_plot(star_files=args.star_files, output_file=args.output, min=args.min, max=args.max, bins=args.bin
