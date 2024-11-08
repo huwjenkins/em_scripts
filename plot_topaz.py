@@ -2,6 +2,7 @@
 # Plots progress of Topaz training or Auto-picking when run from RELION
 # replaces plot_topaz_training.py and plot_topaz_results.py
 # Author Huw Jenkins 061223
+# 081124 add Table of No. particles at various FOM thresholds
 from __future__ import print_function
 import os
 import sys
@@ -56,6 +57,7 @@ def get_job_type(star_file):
 def make_FOM_plot(star_file, output_file, min, max, bins):
   foms = []
   star_files = get_star_files(star_file)
+  print('Reading FOMs from {} star files...'.format(len(star_files)))
   for sf in star_files:
     labels=read_headers(sf)
     fom = labels.index('rlnAutopickFigureOfMerit')
@@ -71,6 +73,9 @@ def make_FOM_plot(star_file, output_file, min, max, bins):
           continue
   print('Plotting histogram of FOM from {} picks from {} micrographs...'.format(len(foms), len(star_files)))
   a = np.array(foms)
+  print(' FOM  No. ptcls')
+  for t in [0.0, -1.0, -1.5,  -2.0, -2.5, -3.0, -3.5, -4.0, -4.5, -5, -6]:
+      print(f"{'{:4.1f}'.format(t):>3} {np.sum(a>t):7d}")
   fig, ax1 = plt.subplots()
   ax1.hist(a, bins=bins, range=(min, max))
   ax1.set_xlabel('Predicted score (predicted log-likelihood ratio)')
