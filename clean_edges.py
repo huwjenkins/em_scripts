@@ -78,7 +78,7 @@ def filter_particles(star_file, output_file, particle_angpix, orig_angpix, recen
             print(f"coordinates: [{xcoord:4.0f}, {ycoord:4.0f}, 0]")
           if xcoord < distance or xcoord > mic_x - distance or ycoord < distance or ycoord > mic_y - distance:
             if verbose:
-              print(f"Particle with centre: {xcoord:4.0f} {ycoord:4.0f} 0 removed")
+              print(f"Particle with centre: {xcoord:4.0f} {ycoord:4.0f} removed")
             n_rejected+=1
           else:
             n_retained+=1
