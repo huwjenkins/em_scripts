@@ -21,7 +21,7 @@ def print_info(particle_angpix, orig_angpix, recenter_x, recenter_y, recenter_z,
   recenter_ang = [c * particle_angpix for c in recenter]
   print(f"After applying recentring of {recenter} px ({recenter_ang} A assuming {particle_angpix} A/px in reference) ")
   print(f"Particles closer than {distance} px ({distance * orig_angpix} A) to edge of micrographs will be removed)")
-  print(f"Remaining particles will have center in range {distance} - {mic_x - distance} in X and {distance} - {mic_y - distance} in Y")
+  print(f"Remaining particles will have center in range {distance} - {mic_x - distance - 1} in X and {distance} - {mic_y - distance - 1} in Y")
 
 def read_headers(star_file):
   data = False
