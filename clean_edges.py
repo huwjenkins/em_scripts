@@ -13,14 +13,17 @@ def euler_angles2matrix_scipy(alpha, beta, gamma):
   A = R.from_euler('ZYZ', (alpha, beta, gamma))
   return A.as_matrix().T
 
-def print_info(particle_angpix, orig_angpix, recenter_x, recenter_y, recenter_z, mic_x, mic_y, distance):
+def print_info(particle_angpix, orig_angpix, recenter_x, recenter_y, recenter_z, mic_x, mic_y, distance, particle_diameter):
   print(f"Micrographs have dimensions: {mic_x} x {mic_y} px and pixel size of {orig_angpix} A")
   if mic_x != mic_y:
     print(f"WARNING! Micrographs are not square - check orientation is correct!!")
   recenter = [recenter_x, recenter_y, recenter_z]
   recenter_ang = [c * particle_angpix for c in recenter]
   print(f"After applying recentring of {recenter} px ({recenter_ang} A assuming {particle_angpix} A/px in reference) ")
-  print(f"Particles closer than {distance} px ({distance * orig_angpix} A) to edge of micrographs will be removed)")
+  if particle_diameter != 0:
+    print(f"Particle diameter of {particle_diameter} A is {particle_diameter/orig_angpix:.3f} px in micrograph. "
+          f"1/2 particle diameter is {0.5 * (particle_diameter/orig_angpix):.3f} px")
+  print(f"Particles closer than {distance} px ({distance * orig_angpix:0.3f} A) to edge of micrographs will be removed")
   print(f"Remaining particles will have center in range {distance} - {mic_x - distance - 1} in X and {distance} - {mic_y - distance - 1} in Y")
 
 def read_headers(star_file):
@@ -37,14 +40,16 @@ def read_headers(star_file):
       else:
          continue
 
-def filter_particles(star_file, output_file, particle_angpix, orig_angpix, recenter_x, recenter_y, recenter_z, mic_x, mic_y, distance, verbose, debug):
+def filter_particles(star_file, output_file, particle_angpix, orig_angpix, recenter_x, recenter_y, recenter_z, mic_x, mic_y, distance, particle_diameter, verbose, debug):
   print(f"Reading particles from {star_file}....")
   rescale = particle_angpix / orig_angpix
   labels = read_headers(star_file)
   xo, yo = labels.index('rlnOriginXAngst'), labels.index('rlnOriginYAngst')
   x, y = labels.index('rlnCoordinateX'), labels.index('rlnCoordinateY')
   r, t, p = labels.index('rlnAngleRot'), labels.index('rlnAngleTilt'), labels.index('rlnAnglePsi')
-  print_info(particle_angpix, orig_angpix, recenter_x, recenter_y, recenter_z, mic_x, mic_y, distance)
+  if particle_diameter != 0:
+    distance = int(0.5 * (particle_diameter/orig_angpix))
+  print_info(particle_angpix, orig_angpix, recenter_x, recenter_y, recenter_z, mic_x, mic_y, distance, particle_diameter)
   n_rejected = 0
   n_retained = 0
   n_particles = 0
@@ -97,7 +102,7 @@ if __name__=='__main__':
   parser.add_argument('star_file', metavar='run_data.star', type=str,
                       help='star file from Refine3D or Class3D')
   parser.add_argument('--output_file', required=False, default='filtered.star', metavar='filtered.star', type=str,
-                      help='star file from Refine3D or Class3D')
+                      help='output star file')
   parser.add_argument('--particle_angpix', required=True, default=None, metavar='1.0', type=float,
                       help='Reference A/pix')
   parser.add_argument('--orig_angpix', required=True, default=None, metavar='1.0', type=float,
@@ -106,8 +111,11 @@ if __name__=='__main__':
                       help='Micrograph size in X in pixels (Falcon 4: 4096, K2: 3838, K3: 5760)')
   parser.add_argument('--mic_y', required=True, default=None, metavar='4096', type=int,
                       help='Micrograph size in Y in pixels (Falcon 4: 4096, K2: 3710, K3: 4092)')
-  parser.add_argument('--distance', required=False, default=0, metavar='0', type=int,
-                      help='Remove particles with center closer than this distance to any edge of the micrograph')
+  distance = parser.add_mutually_exclusive_group(required=False)
+  distance.add_argument('--distance', default=0, metavar='0', type=int,
+                      help='Remove particles with center closer than this distance in pixels to any edge of the micrograph')
+  distance.add_argument('--particle_diameter', default=0, metavar='0', type=int,
+                      help='Particle diameter in A. Particles closer than half this distance to any edge of the micrograph will be removed.')
   parser.add_argument('--recenter_x', required=False, default=0, metavar='0', type=int,
                       help='X-coordinate (in px of the reference) to recenter on')
   parser.add_argument('--recenter_y', required=False, default=0, metavar='0', type=int,
@@ -119,6 +127,7 @@ if __name__=='__main__':
   parser.add_argument('--debug', required=False, default=False, action='store_true',
                       help='print debugging information')
   args = parser.parse_args()
+
   filter_particles(star_file=args.star_file, 
                    output_file=args.output_file,
                    particle_angpix=args.particle_angpix,
@@ -126,6 +135,7 @@ if __name__=='__main__':
                    mic_x=args.mic_x,
                    mic_y=args.mic_y,
                    distance=args.distance,
+                   particle_diameter=args.particle_diameter,
                    recenter_x=args.recenter_x,
                    recenter_y=args.recenter_y,
                    recenter_z=args.recenter_z,
